@@ -1,0 +1,2375 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BIRD HUNTER – PEMBURU TARGET CERDAS</title>
+
+  <!-- Google Fonts: Fredoka untuk nuansa arcade anak SD yang ceria dan mudah dibaca -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- MediaPipe Hands & Camera Utils CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --sky-top: #38bdf8;
+      --sky-mid: #bae6fd;
+      --sky-bottom: #fef9c3;
+      --primary: #f97316;
+      --primary-dark: #ea580c;
+      --secondary: #10b981;
+      --secondary-dark: #059669;
+      --accent: #eab308;
+      --purple: #8b5cf6;
+      --danger: #ef4444;
+      --text-dark: #1e293b;
+      --card-bg: rgba(255, 255, 255, 0.94);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Fredoka', 'Nunito', sans-serif;
+      background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 65%, var(--sky-bottom) 100%);
+      color: var(--text-dark);
+    }
+
+    /* Canvas Latar Taman Fantasi & Gameplay */
+    #gameCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+      cursor: none;
+    }
+
+    /* Saat modal atau menu aktif, kembalikan kursor normal agar mudah klik */
+    body.menu-open #gameCanvas {
+      cursor: default;
+    }
+
+    /* ================= NAVBAR ATAS ================= */
+    #topNavbar {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(96%, 1180px);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border: 3px solid #ffffff;
+      border-radius: 24px;
+      padding: 10px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: 0 10px 25px rgba(14, 116, 144, 0.18);
+      z-index: 20;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    #topNavbar.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -20px);
+    }
+
+    .nav-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f1f5f9;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      border: 2px solid #e2e8f0;
+    }
+
+    .nav-pill.player {
+      background: #fef3c7;
+      border-color: #fde68a;
+      color: #92400e;
+    }
+
+    .nav-pill.level {
+      background: #e0f2fe;
+      border-color: #bae6fd;
+      color: #075985;
+    }
+
+    .nav-pill.score {
+      background: #dcfce7;
+      border-color: #bbf7d0;
+      color: #166534;
+      font-size: 1.05rem;
+    }
+
+    /* Timer Bar */
+    .timer-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff1f2;
+      border: 2px solid #fecdd3;
+      padding: 6px 12px;
+      border-radius: 999px;
+      min-width: 145px;
+    }
+
+    .timer-bar-bg {
+      flex: 1;
+      height: 10px;
+      background: #ffe4e6;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .timer-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #10b981, #eab308, #ef4444);
+      border-radius: 999px;
+      transition: width 0.25s linear;
+    }
+
+    .timer-text {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #be123c;
+      min-width: 32px;
+      text-align: right;
+    }
+
+    /* ================= PANEL PERTANYAAN ================= */
+    #questionPanel {
+      position: fixed;
+      top: 82px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(94%, 880px);
+      background: var(--card-bg);
+      border: 4px solid #ffffff;
+      border-radius: 26px;
+      padding: 14px 24px;
+      box-shadow: 0 12px 30px rgba(2, 132, 199, 0.2);
+      z-index: 15;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    #questionPanel.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -15px);
+    }
+
+    .question-meta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .badge-hots {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: white;
+    }
+
+    .badge-LOTS { background: #10b981; }
+    .badge-MOTS { background: #f59e0b; }
+    .badge-HOTS { background: #8b5cf6; }
+
+    .subject-tag {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 4px 12px;
+      border-radius: 999px;
+    }
+
+    #questionText {
+      font-size: clamp(1.05rem, 2.2vw, 1.38rem);
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.4;
+    }
+
+    /* ================= TOMBOL ARCADE ================= */
+    .btn-arcade {
+      border: none;
+      border-radius: 18px;
+      padding: 12px 22px;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.15s ease;
+      text-shadow: 0 2px 0 rgba(0,0,0,0.18);
+    }
+
+    .btn-arcade:hover:not(:disabled) {
+      transform: translateY(-2px);
+      filter: brightness(1.05);
+    }
+
+    .btn-arcade:active:not(:disabled) {
+      transform: translateY(3px);
+    }
+
+    .btn-arcade:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn-orange {
+      background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
+      box-shadow: 0 5px 0 #c2410c, 0 8px 16px rgba(249, 115, 22, 0.35);
+    }
+    .btn-orange:active:not(:disabled) { box-shadow: 0 2px 0 #c2410c; }
+
+    .btn-green {
+      background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+      box-shadow: 0 5px 0 #047857, 0 8px 16px rgba(16, 185, 129, 0.35);
+    }
+    .btn-green:active:not(:disabled) { box-shadow: 0 2px 0 #047857; }
+
+    .btn-blue {
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+      box-shadow: 0 5px 0 #0369a1, 0 8px 16px rgba(2, 132, 199, 0.35);
+    }
+    .btn-blue:active:not(:disabled) { box-shadow: 0 2px 0 #0369a1; }
+
+    .btn-purple {
+      background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
+      box-shadow: 0 5px 0 #5b21b6, 0 8px 16px rgba(124, 58, 237, 0.35);
+    }
+
+    .btn-sm {
+      padding: 7px 14px;
+      font-size: 0.88rem;
+      border-radius: 14px;
+    }
+
+    /* ================= OVERLAY & MODAL ================= */
+    .overlay-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 40;
+      transition: opacity 0.25s ease;
+    }
+
+    .overlay-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border: 5px solid #fde047;
+      border-radius: 32px;
+      width: min(96%, 680px);
+      max-height: 92vh;
+      overflow-y: auto;
+      padding: 26px 28px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+      text-align: center;
+      position: relative;
+      animation: popIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .game-title {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 700;
+      color: #ea580c;
+      text-shadow: 2px 3px 0 #fef08a;
+      line-height: 1.15;
+      margin-bottom: 6px;
+    }
+
+    .game-subtitle {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #0284c7;
+      margin-bottom: 18px;
+    }
+
+    .identity-box {
+      background: #f0f9ff;
+      border: 2px dashed #7dd3fc;
+      border-radius: 18px;
+      padding: 10px 16px;
+      margin-bottom: 18px;
+      font-size: 0.9rem;
+      color: #0369a1;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 18px;
+    }
+
+    .input-group {
+      margin-bottom: 18px;
+      text-align: left;
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #334155;
+      font-size: 0.98rem;
+    }
+
+    .input-name {
+      width: 100%;
+      padding: 13px 18px;
+      border-radius: 18px;
+      border: 3px solid #cbd5e1;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #0f172a;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-name:focus {
+      border-color: #f97316;
+    }
+
+    /* Grid Pemilihan Level */
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin: 12px 0 20px;
+    }
+
+    @media (max-width: 540px) {
+      .level-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .level-btn {
+      background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
+      border: 3px solid #eab308;
+      border-radius: 20px;
+      padding: 12px 8px;
+      cursor: pointer;
+      font-family: 'Fredoka', sans-serif;
+      transition: transform 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 4px 0 #ca8a04;
+    }
+
+    .level-btn:hover:not(.locked) {
+      transform: translateY(-3px);
+    }
+
+    .level-btn.selected {
+      background: linear-gradient(180deg, #6ee7b7 0%, #10b981 100%);
+      border-color: #059669;
+      color: white;
+      box-shadow: 0 4px 0 #047857;
+    }
+
+    .level-btn.completed:not(.selected) {
+      background: linear-gradient(180deg, #bae6fd 0%, #38bdf8 100%);
+      border-color: #0284c7;
+      box-shadow: 0 4px 0 #0369a1;
+    }
+
+    .level-btn.locked {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+      color: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: 0 4px 0 #94a3b8;
+    }
+
+    .level-num {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .level-status {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* Panduan Singkat Cara Bermain */
+    .how-to-play {
+      background: #fffbeb;
+      border: 2px solid #fde68a;
+      border-radius: 18px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      text-align: left;
+      font-size: 0.88rem;
+      color: #78350f;
+    }
+
+    .how-to-play ul {
+      padding-left: 20px;
+      margin-top: 4px;
+      display: grid;
+      gap: 4px;
+    }
+
+    /* ================= KAMERA MINI & KONTROL ================= */
+    #cameraWidget {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 210px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 3px solid #ffffff;
+      border-radius: 20px;
+      overflow: hidden;
+      z-index: 30;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      transition: all 0.25s ease;
+    }
+
+    #cameraWidget.hidden {
+      display: none;
+    }
+
+    .cam-header {
+      background: #0284c7;
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 5px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cam-view {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #0f172a;
+    }
+
+    #webcamVideo {
+      display: none;
+    }
+
+    #handCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      transform: scaleX(-1); /* Efek cermin natural */
+    }
+
+    #gestureBadge {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.85);
+      color: #fde047;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+
+    /* Tombol mengambang di pojok kiri bawah saat bermain */
+    #bottomControls {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      z-index: 25;
+    }
+
+    #bottomControls.hidden {
+      display: none;
+    }
+
+    /* Toast Notifikasi Ramah */
+    #toastBanner {
+      position: fixed;
+      bottom: 75px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1e293b;
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      z-index: 60;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      text-align: center;
+      max-width: 90%;
+    }
+
+    #toastBanner.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Kotak Penjelasan Jawaban Salah */
+    .explanation-box {
+      background: #fef2f2;
+      border: 3px solid #fecaca;
+      border-radius: 20px;
+      padding: 16px;
+      margin: 14px 0;
+      text-align: left;
+    }
+
+    .correct-answer-highlight {
+      background: #dcfce7;
+      border: 2px solid #86efac;
+      color: #166534;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    /* Tabel Ringkasan Akhir */
+    .summary-list {
+      background: #f8fafc;
+      border-radius: 18px;
+      padding: 12px;
+      margin: 14px 0;
+      display: grid;
+      gap: 8px;
+      text-align: left;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      font-weight: 600;
+    }
+
+    @media (max-width: 640px) {
+      #cameraWidget {
+        width: 145px;
+        bottom: 10px;
+        right: 10px;
+      }
+      #questionPanel {
+        top: 118px;
+        padding: 10px 14px;
+      }
+      .nav-pill {
+        padding: 4px 10px;
+        font-size: 0.82rem;
+      }
+    }
+  </style>
+</head>
+<body class="menu-open">
+
+  <!-- CANVAS UTAMA PERMAINAN -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- NAVBAR ATAS -->
+  <header id="topNavbar" class="hidden">
+    <div class="nav-group">
+      <div class="nav-pill player">
+        <span>🛡️</span>
+        <span id="navPlayerName">Penjaga Cilik</span>
+      </div>
+      <div class="nav-pill level">
+        <span>🌳</span>
+        <span id="navLevelInfo">Level 1 • Soal 1/3</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-pill score">
+        <span>⭐ Skor:</span>
+        <span id="navScore">0</span>
+      </div>
+      <div class="timer-wrapper" title="Sisa Waktu Soal">
+        <span>⏱️</span>
+        <div class="timer-bar-bg">
+          <div id="timerBarFill" class="timer-bar-fill"></div>
+        </div>
+        <span id="timerText" class="timer-text">35s</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PANEL PERTANYAAN AKTIF -->
+  <section id="questionPanel" class="hidden">
+    <div class="question-meta">
+      <span id="questionBadge" class="badge-hots badge-LOTS">LOTS • MENGINGAT</span>
+      <span id="questionTopic" class="subject-tag">IPAS Kelas 3 SD • Siklus Hidup pada Manusia</span>
+    </div>
+    <h2 id="questionText">Memuat pertanyaan...</h2>
+  </section>
+
+  <!-- KONTROL BAWAH SAAT BERMAIN -->
+  <div id="bottomControls" class="hidden">
+    <button id="btnToggleCamInGame" class="btn-arcade btn-blue btn-sm" type="button">
+      📷 Aktifkan Kamera Gesture
+    </button>
+    <button id="btnToggleSound" class="btn-arcade btn-purple btn-sm" type="button">
+      🔊 Suara: ON
+    </button>
+    <button id="btnBackToMenu" class="btn-arcade btn-orange btn-sm" type="button">
+      🏠 Menu Level
+    </button>
+  </div>
+
+  <!-- WIDGET PRATINJAU KAMERA MEDIAPIPE -->
+  <aside id="cameraWidget" class="hidden">
+    <div class="cam-header">
+      <span>✋ Sensor Tangan</span>
+      <button id="btnCloseCamWidget" style="background:none;border:none;color:white;font-weight:bold;cursor:pointer;" title="Matikan Kamera">✖</button>
+    </div>
+    <div class="cam-view">
+      <video id="webcamVideo" playsinline></video>
+      <canvas id="handCanvas"></canvas>
+      <div id="gestureBadge">Mencari tangan...</div>
+    </div>
+  </aside>
+
+  <!-- TOAST NOTIFIKASI -->
+  <div id="toastBanner"></div>
+
+  <!-- ================= LAYAR 1: HALAMAN AWAL (START SCREEN) ================= -->
+  <div id="startScreen" class="overlay-screen">
+    <div class="modal-card">
+      <div style="font-size: 3.2rem; line-height: 1; margin-bottom: 6px;">🦜🎯🎈</div>
+      <h1 class="game-title">BIRD HUNTER<br>PEMBURU TARGET CERDAS</h1>
+      <p class="game-subtitle">Jadilah Penjaga Taman Burung yang Hebat & Cerdas!</p>
+
+      <div class="identity-box" id="identityDisplay">
+        <!-- Diisi otomatis oleh JavaScript dari konfigurasi -->
+      </div>
+
+      <div class="input-group">
+        <label for="playerNameInput">✏️ Tuliskan Nama Penjaga Taman:</label>
+        <input type="text" id="playerNameInput" class="input-name" placeholder="Contoh: Raka, Siti, Budi..." maxlength="22" />
+      </div>
+
+      <div style="text-align: left; font-weight: 700; color: #334155; font-size: 0.95rem;">
+        🗺️ Pilih Level Petualangan (Terbuka Bertahap):
+      </div>
+      <div class="level-grid" id="levelGrid">
+        <!-- Tombol Level 1 - 5 dibuat dinamis -->
+      </div>
+
+      <div class="how-to-play">
+        <strong>🎮 Cara Bermain:</strong>
+        <ul>
+          <li>Arahkan bidikan ke <strong>balon jawaban yang benar</strong> menggunakan <strong>Jari Telunjuk</strong> (via Kamera) atau <strong>Mouse / Sentuhan Layar</strong>.</li>
+          <li>Lakukan gerakan <strong>PINCH (mencubit ujung telunjuk & jempol)</strong> atau <strong>Klik / Ketuk</strong> untuk memecahkan balon!</li>
+          <li>Jawaban benar mendapat <strong>+100 Poin</strong>. Selesaikan semua 5 level!</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+        <button id="btnActivateCamStart" class="btn-arcade btn-blue" type="button">
+          📷 Aktifkan Kamera Gesture
+        </button>
+        <button id="btnStartGame" class="btn-arcade btn-green" type="button">
+          🚀 Mulai Bermain!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LAYAR 2: MODAL PENJELASAN JAWABAN SALAH / WAKTU HABIS ================= -->
+  <div id="feedbackModal" class="overlay-screen hidden">
+    <div class="modal-card" style="border-color: #fda4af;">
+      <div id="feedbackEmoji" style="font-size: 3.4rem; margin-bottom: 6px;">🦉💡</div>
+      <h2 id="feedbackTitle" style="font-size: 1.65rem; color: #e11d48; margin-bottom: 6px;">
+        Hampir Tepat, Yuk Belajar Bersama!
+      </h2>
+      <p id="feedbackSubtitle" style="font-weight: 600; color: #475569;">
+        Jangan menyerah ya, penjaga taman! Perhatikan penjelasan berikut:
+      </p>
+
+      <div class="explanation-box">
+        <div id="feedbackCorrectAnswer" class="correct-answer-highlight">
+          ✅ Jawaban yang benar: ...
+        </div>
+        <p id="feedbackExplanation" style="font-size: 1rem; line-height: 1.5; color: #1e293b; font-weight: 600;">
+          Penjelasan ramah anak...
+        </p>
+      </div>
+
+      <button id="btnNextAfterFeedback" class="btn-arcade btn-orange" type="button">
+        Lanjut Soal Berikutnya ➡️
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= LAYAR 3: MODAL SELESAI LEVEL ================= -->
+  <div id="levelCompleteModal" class="overlay-screen hidden">
+    <div class="modal-card" style="border-color: #6ee7b7;">
+      <div style="font-size: 3.6rem; margin-bottom: 6px;">🎉🦜🌟</div>
+      <h2 id="levelCompleteTitle" style="font-size: 1.85rem; color: #059669; margin-bottom: 6px;">
+        Level 1 Selesai!
+      </h2>
+      <p id="levelCompleteMessage" style="font-size: 1.08rem; font-weight: 600; color: #334155; margin-bottom: 14px;">
+        Hebat sekali!
+      </p>
+
+      <div style="background: #ecfdf5; border: 2px solid #a7f3d0; border-radius: 20px; padding: 14px; margin-bottom: 18px;">
+        <div style="font-size: 0.95rem; color: #065f46; font-weight: 600;">Skor Level Ini:</div>
+        <div id="levelScoreValue" style="font-size: 2.2rem; font-weight: 700; color: #047857;">300 Poin</div>
+        <div id="totalScorePreview" style="font-size: 0.9rem; color: #059669; margin-top: 4px;">Total Skor Keseluruhan: 300</div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+        <button id="btnReplayLevel" class="btn-arcade btn-blue" type="button">
+          🔄 Ulangi Level Ini
+        </button>
+        <button id="btnNextLevel" class="btn-arcade btn-green" type="button">
+          Lanjut ke Level 2 ➡️
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LAYAR 4: HALAMAN HASIL AKHIR ================= -->
+  <div id="finalResultModal" class="overlay-screen hidden">
+    <div class="modal-card" style="border-color: #facc15;">
+      <div style="font-size: 4rem; margin-bottom: 6px;">🏆🦜👑</div>
+      <h2 style="font-size: 1.95rem; color: #d97706; margin-bottom: 6px;">
+        SELAMAT, PENJAGA TAMAN JUARA!
+      </h2>
+      <p id="finalAppreciation" style="font-size: 1.1rem; font-weight: 600; color: #1e293b; line-height: 1.45; margin-bottom: 14px;">
+        Luar biasa!
+      </p>
+
+      <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 3px solid #f59e0b; border-radius: 22px; padding: 14px; margin-bottom: 14px;">
+        <div style="font-size: 0.95rem; font-weight: 700; color: #92400e;">TOTAL SKOR AKHIR</div>
+        <div id="finalTotalScore" style="font-size: 2.6rem; font-weight: 700; color: #b45309;">1500 POIN</div>
+        <div id="finalRankBadge" style="display: inline-block; background: #10b981; color: white; padding: 4px 14px; border-radius: 999px; font-size: 0.88rem; font-weight: 700; margin-top: 4px;">
+          Predikat: Master Penjaga Taman Burung
+        </div>
+      </div>
+
+      <div class="summary-list" id="finalSummaryList">
+        <!-- Rincian skor tiap level diisi oleh JS -->
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px;">
+        <button id="btnRestartAll" class="btn-arcade btn-orange" type="button">
+          🔁 Ulang Permainan dari Awal
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * KONFIGURASI IDENTITAS & BANK SOAL (MUDAH DIUBAH OLEH GURU)
+     * ============================================================================
+     * Mata Pelajaran : IPAS (Ilmu Pengetahuan Alam dan Sosial)
+     * Materi         : Siklus Hidup pada Manusia
+     * Kelas          : Kelas 3 Sekolah Dasar (SD)
+     * Setiap level berisi tepat 3 soal:
+     *   Index 0 -> LOTS (Mengingat / Memahami tahapan siklus hidup manusia)
+     *   Index 1 -> MOTS (Menerapkan / Membandingkan perubahan fisik & kebutuhan)
+     *   Index 2 -> HOTS (Menganalisis / Mengevaluasi situasi kontekstual sehari-hari)
+     */
+    const GAME_CONFIG = {
+      mataPelajaran: "IPAS (Ilmu Pengetahuan Alam dan Sosial)",
+      materi: "Siklus Hidup pada Manusia",
+      kelas: "Kelas 3 Sekolah Dasar (SD)",
+      waktuPerSoal: 35, // Durasi timer per soal dalam detik
+      poinBenar: 100,   // Poin setiap jawaban benar
+
+      levels: [
+        // ==================== LEVEL 1 ====================
+        {
+          level: 1,
+          judul: "Awal Kehidupan Manusia",
+          questions: [
+            {
+              type: "LOTS",
+              text: "Tahap paling awal dalam siklus hidup manusia setelah lahir ke dunia disebut tahap...",
+              options: ["Bayi", "Remaja", "Dewasa", "Lansia"],
+              correctIndex: 0,
+              explanation: "Saat baru lahir, manusia berada pada tahap bayi. Bayi belum bisa berjalan atau berbicara dan sangat membutuhkan kasih sayang orang tua."
+            },
+            {
+              type: "MOTS",
+              text: "Adik Beni yang berumur 6 bulan belum bisa makan nasi dan lauk seperti Beni. Makanan utama yang paling dibutuhkan adik Beni pada tahap bayi adalah...",
+              options: [
+                "ASI (Air Susu Ibu)",
+                "Kerupuk pedas",
+                "Kacang goreng keras",
+                "Minuman bersoda"
+              ],
+              correctIndex: 0,
+              explanation: "Bayi belum memiliki gigi yang kuat dan pencernaannya masih lembut, sehingga makanan terbaik dan paling bergizi adalah ASI."
+            },
+            {
+              type: "HOTS",
+              text: "Ibu sedang menyuapi adik bayi di ruang tamu, sementara Rina bermain kelereng di dekatnya. Agar adik bayi tetap aman, tindakan Rina yang paling tepat adalah...",
+              options: [
+                "Merapikan kelereng ke kotak mainan",
+                "Membagikan kelereng ke mulut adik",
+                "Menyebar kelereng di lantai dekat adik",
+                "Membiarkan kelereng berserakan"
+              ],
+              correctIndex: 0,
+              explanation: "Bayi sering memasukkan benda kecil ke mulutnya karena rasa ingin tahu. Menyimpan kelereng mencegah adik tersedak."
+            }
+          ]
+        },
+
+        // ==================== LEVEL 2 ====================
+        {
+          level: 2,
+          judul: "Masa Balita & Anak-Anak",
+          questions: [
+            {
+              type: "LOTS",
+              text: "Anak yang berusia sekitar 1 sampai 5 tahun dan mulai belajar berjalan serta berbicara disebut...",
+              options: ["Balita", "Lansia", "Dewasa", "Remaja"],
+              correctIndex: 0,
+              explanation: "Balita adalah singkatan dari Bawah Lima Tahun (usia 1–5 tahun). Pada masa ini anak mulai lancar berjalan, berlari, dan berbicara."
+            },
+            {
+              type: "MOTS",
+              text: "Perbedaan kemampuan yang terlihat jelas antara masa bayi dan masa anak-anak usia kelas 3 SD adalah...",
+              options: [
+                "Anak kelas 3 SD sudah mandiri belajar & bermain",
+                "Anak kelas 3 SD hanya bisa merangkak di kasur",
+                "Bayi sudah bisa berangkat sekolah sendiri",
+                "Bayi sudah tumbuh gigi tetap yang lengkap"
+              ],
+              correctIndex: 0,
+              explanation: "Pada tahap anak-anak (usia 6–12 tahun), tubuh bertambah tinggi, otot makin kuat, dan anak sudah mampu belajar, membaca, serta merawat diri."
+            },
+            {
+              type: "HOTS",
+              text: "Sepatu dan baju seragam kelas 1 milik Edo sekarang sudah terasa sempit dan kekecilan saat ia duduk di kelas 3 SD. Hal ini membuktikan bahwa Edo mengalami...",
+              options: [
+                "Pertumbuhan ukuran tubuh",
+                "Baju yang menyusut setiap hari",
+                "Tahap perubahan menjadi lansia",
+                "Penurunan berat badan drastis"
+              ],
+              correctIndex: 0,
+              explanation: "Bertambahnya tinggi dan besar ukuran tubuh membuat baju serta sepatu lama menjadi sempit. Ini bukti nyata pertumbuhan manusia!"
+            }
+          ]
+        },
+
+        // ==================== LEVEL 3 ====================
+        {
+          level: 3,
+          judul: "Menuju Masa Remaja",
+          questions: [
+            {
+              type: "LOTS",
+              text: "Tahap peralihan dalam siklus hidup manusia setelah masa anak-anak sebelum menjadi dewasa disebut...",
+              options: ["Remaja", "Bayi", "Balita", "Lansia"],
+              correctIndex: 0,
+              explanation: "Setelah melewati masa anak-anak (sekitar usia 12–18 tahun), manusia memasuki tahap remaja yang ditandai pertumbuhan pesat."
+            },
+            {
+              type: "MOTS",
+              text: "Kakak laki-laki Siti sekarang duduk di bangku SMP. Suaranya terdengar lebih berat dan tubuhnya tumbuh jauh lebih tinggi daripada tahun lalu. Kakak Siti sedang berada pada tahap...",
+              options: ["Remaja", "Balita", "Bayi", "Lansia"],
+              correctIndex: 0,
+              explanation: "Perubahan suara menjadi lebih berat pada laki-laki dan pertambahan tinggi yang cepat merupakan ciri perkembangan pada masa remaja."
+            },
+            {
+              type: "HOTS",
+              text: "Agar pertumbuhan tulang dan tubuhmu dari masa anak-anak menuju remaja berjalan sehat dan optimal, kebiasaan sehari-hari yang sebaiknya kamu lakukan adalah...",
+              options: [
+                "Makan bergizi, olahraga & tidur cukup",
+                "Begadang bermain gim setiap malam",
+                "Makan makanan manis setiap saat",
+                "Malas bergerak dan jarang minum air"
+              ],
+              correctIndex: 0,
+              explanation: "Makanan bergizi seimbang, berolahraga teratur, dan tidur cukup sangat membantu tubuh tumbuh sehat dan kuat menuju masa remaja."
+            }
+          ]
+        },
+
+        // ==================== LEVEL 4 ====================
+        {
+          level: 4,
+          judul: "Tahap Dewasa & Lansia",
+          questions: [
+            {
+              type: "LOTS",
+              text: "Tahap terakhir dalam siklus hidup manusia yang ditandai rambut mulai memutih (beruban) dan kulit keriput disebut...",
+              options: ["Lansia (Lanjut Usia)", "Balita", "Remaja", "Anak-anak"],
+              correctIndex: 0,
+              explanation: "Lansia (Lanjut Usia) adalah tahap akhir siklus hidup manusia, seperti kakek dan nenek yang rambutnya beruban serta tenaganya mulai berkurang."
+            },
+            {
+              type: "MOTS",
+              text: "Ayah dan Ibu bekerja mencari nafkah, merawat keluarga, serta sudah berhenti tumbuh tinggi. Ayah dan Ibu berada pada tahap siklus hidup...",
+              options: ["Dewasa", "Bayi", "Balita", "Anak-anak"],
+              correctIndex: 0,
+              explanation: "Pada tahap dewasa, pertumbuhan tinggi badan manusia sudah berhenti, cara berpikir sudah matang, dan mampu bekerja serta berkeluarga."
+            },
+            {
+              type: "HOTS",
+              text: "Kakek Budi yang sudah lansia kesulitan berjalan cepat saat menyeberang jalan menuju taman burung. Sikap terpuji yang sebaiknya dilakukan Budi adalah...",
+              options: [
+                "Menggandeng tangan kakek dengan sabar",
+                "Berlari mendahului kakek sendirian",
+                "Meminta kakek berlari lebih cepat",
+                "Menertawakan langkah kaki kakek"
+              ],
+              correctIndex: 0,
+              explanation: "Kekuatan otot dan penglihatan lansia sudah menurun. Menggandeng dan membantu kakek menunjukkan rasa sayang dan hormat kepada orang tua."
+            }
+          ]
+        },
+
+        // ==================== LEVEL 5 ====================
+        {
+          level: 5,
+          judul: "Urutan Siklus Hidup Lengkap",
+          questions: [
+            {
+              type: "LOTS",
+              text: "Urutan siklus hidup manusia dari awal lahir hingga tua yang paling tepat adalah...",
+              options: [
+                "Bayi → Balita → Anak → Remaja → Dewasa → Lansia",
+                "Bayi → Remaja → Balita → Anak → Lansia → Dewasa",
+                "Balita → Bayi → Dewasa → Anak → Remaja → Lansia",
+                "Anak → Bayi → Remaja → Balita → Dewasa → Lansia"
+              ],
+              correctIndex: 0,
+              explanation: "Siklus hidup manusia berjalan berurutan mulai dari bayi, balita, anak-anak, remaja, dewasa, hingga lanjut usia (lansia)."
+            },
+            {
+              type: "MOTS",
+              text: "Di rumah Dayu tinggal: Adik (2 tahun), Dayu (9 tahun), Kakak (15 tahun), Ibu (38 tahun), dan Nenek (68 tahun). Anggota keluarga Dayu yang berada pada tahap dewasa adalah...",
+              options: ["Ibu", "Adik", "Kakak", "Nenek"],
+              correctIndex: 0,
+              explanation: "Ibu (38 tahun) berada pada tahap dewasa. Adik masih balita, Dayu anak-anak, Kakak remaja, dan Nenek adalah lansia."
+            },
+            {
+              type: "HOTS",
+              text: "Mengapa seorang bayi yang baru lahir tidak langsung bisa berlari atau membaca buku seperti siswa kelas 3 SD?",
+              options: [
+                "Karena organ tubuh & otaknya bertahap berkembang",
+                "Karena bayi tidak suka bermain di luar",
+                "Karena bayi belum memiliki nama lengkap",
+                "Karena tulang bayi terbuat dari kapas"
+              ],
+              correctIndex: 0,
+              explanation: "Pertumbuhan dan perkembangan manusia terjadi secara bertahap seiring bertambahnya usia, latihan, serta asupan gizi yang baik."
+            }
+          ]
+        }
+      ]
+    };
+
+    /**
+     * ============================================================================
+     * SISTEM EFEK SUARA SINTETIS (WEB AUDIO API - TANPA FILE EKSTERNAL)
+     * ============================================================================
+     */
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playPop() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.16);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.17);
+      }
+
+      playCorrect() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const now = this.ctx.currentTime + idx * 0.09;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.26);
+        });
+      }
+
+      playWrong() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const notes = [330, 261.63]; // E4 -> C4 lembut
+        notes.forEach((freq, idx) => {
+          const now = this.ctx.currentTime + idx * 0.16;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        });
+      }
+
+      playMiss() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.09);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      }
+
+      playLevelUp() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const melody = [523.25, 659.25, 783.99, 659.25, 1046.5];
+        melody.forEach((freq, idx) => {
+          const now = this.ctx.currentTime + idx * 0.11;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.34);
+        });
+      }
+    }
+
+    const sfx = new SoundEffects();
+
+    /**
+     * ============================================================================
+     * STATE UTAMA PERMAINAN
+     * ============================================================================
+     */
+    const state = {
+      playerName: "Penjaga Cilik",
+      unlockedLevel: 1,
+      selectedLevel: 1,
+      currentLevelIndex: 0,
+      currentQuestionIndex: 0,
+      levelScores: [0, 0, 0, 0, 0],
+      currentLevelScore: 0,
+      isPlaying: false,
+      isPaused: false,
+      timeLeft: GAME_CONFIG.waktuPerSoal,
+      timerInterval: null,
+
+      // Retikel (koordinat layar dalam piksel)
+      reticle: {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+        targetX: window.innerWidth / 2,
+        targetY: window.innerHeight / 2,
+        pulse: 0,
+        shootFlash: 0,
+        isPinching: false,
+        handDetected: false
+      },
+
+      // Kamera & MediaPipe
+      cameraActive: false,
+      cameraInstance: null,
+      handsInstance: null,
+      lastPinchTime: 0,
+      pinchCooldownMs: 650,
+
+      // Objek visual di Canvas
+      balloons: [],
+      birds: [],
+      clouds: [],
+      particles: [],
+      floatingTexts: []
+    };
+
+    // Muat progres level terbuka dari localStorage jika tersedia
+    try {
+      const savedUnlock = parseInt(localStorage.getItem('birdHunter_unlockedLevel'), 10);
+      if (savedUnlock >= 1 && savedUnlock <= 5) {
+        state.unlockedLevel = savedUnlock;
+      }
+      const savedName = localStorage.getItem('birdHunter_playerName');
+      if (savedName) {
+        state.playerName = savedName;
+      }
+    } catch (e) {
+      // Abaikan jika penyimpanan lokal dibatasi
+    }
+
+    /**
+     * ============================================================================
+     * REFERENSI ELEMEN DOM
+     * ============================================================================
+     */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const topNavbar = document.getElementById('topNavbar');
+    const navPlayerName = document.getElementById('navPlayerName');
+    const navLevelInfo = document.getElementById('navLevelInfo');
+    const navScore = document.getElementById('navScore');
+    const timerBarFill = document.getElementById('timerBarFill');
+    const timerText = document.getElementById('timerText');
+
+    const questionPanel = document.getElementById('questionPanel');
+    const questionBadge = document.getElementById('questionBadge');
+    const questionTopic = document.getElementById('questionTopic');
+    const questionText = document.getElementById('questionText');
+
+    const bottomControls = document.getElementById('bottomControls');
+    const btnToggleCamInGame = document.getElementById('btnToggleCamInGame');
+    const btnToggleSound = document.getElementById('btnToggleSound');
+    const btnBackToMenu = document.getElementById('btnBackToMenu');
+
+    const startScreen = document.getElementById('startScreen');
+    const identityDisplay = document.getElementById('identityDisplay');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const levelGrid = document.getElementById('levelGrid');
+    const btnActivateCamStart = document.getElementById('btnActivateCamStart');
+    const btnStartGame = document.getElementById('btnStartGame');
+
+    const feedbackModal = document.getElementById('feedbackModal');
+    const feedbackTitle = document.getElementById('feedbackTitle');
+    const feedbackSubtitle = document.getElementById('feedbackSubtitle');
+    const feedbackCorrectAnswer = document.getElementById('feedbackCorrectAnswer');
+    const feedbackExplanation = document.getElementById('feedbackExplanation');
+    const btnNextAfterFeedback = document.getElementById('btnNextAfterFeedback');
+
+    const levelCompleteModal = document.getElementById('levelCompleteModal');
+    const levelCompleteTitle = document.getElementById('levelCompleteTitle');
+    const levelCompleteMessage = document.getElementById('levelCompleteMessage');
+    const levelScoreValue = document.getElementById('levelScoreValue');
+    const totalScorePreview = document.getElementById('totalScorePreview');
+    const btnReplayLevel = document.getElementById('btnReplayLevel');
+    const btnNextLevel = document.getElementById('btnNextLevel');
+
+    const finalResultModal = document.getElementById('finalResultModal');
+    const finalAppreciation = document.getElementById('finalAppreciation');
+    const finalTotalScore = document.getElementById('finalTotalScore');
+    const finalRankBadge = document.getElementById('finalRankBadge');
+    const finalSummaryList = document.getElementById('finalSummaryList');
+    const btnRestartAll = document.getElementById('btnRestartAll');
+
+    const cameraWidget = document.getElementById('cameraWidget');
+    const webcamVideo = document.getElementById('webcamVideo');
+    const handCanvas = document.getElementById('handCanvas');
+    const handCtx = handCanvas.getContext('2d');
+    const gestureBadge = document.getElementById('gestureBadge');
+    const btnCloseCamWidget = document.getElementById('btnCloseCamWidget');
+    const toastBanner = document.getElementById('toastBanner');
+
+    let toastTimeout = null;
+    function showToast(msg, duration = 3000) {
+      toastBanner.textContent = msg;
+      toastBanner.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toastBanner.classList.remove('show');
+      }, duration);
+    }
+
+    /**
+     * ============================================================================
+     * INISIALISASI UI MENU AWAL
+     * ============================================================================
+     */
+    function initStartScreenUI() {
+      identityDisplay.innerHTML = `
+        <span>📚 <strong>Mapel:</strong> ${GAME_CONFIG.mataPelajaran}</span>
+        <span>📖 <strong>Materi:</strong> ${GAME_CONFIG.materi}</span>
+        <span>🎓 <strong>Kelas:</strong> ${GAME_CONFIG.kelas}</span>
+      `;
+      questionTopic.textContent = `${GAME_CONFIG.kelas} • ${GAME_CONFIG.materi}`;
+      if (state.playerName && state.playerName !== "Penjaga Cilik") {
+        playerNameInput.value = state.playerName;
+      }
+      renderLevelButtons();
+    }
+
+    function renderLevelButtons() {
+      levelGrid.innerHTML = '';
+      GAME_CONFIG.levels.forEach((lvlObj) => {
+        const lvl = lvlObj.level;
+        const isUnlocked = lvl <= state.unlockedLevel;
+        const isCompleted = state.levelScores[lvl - 1] > 0;
+        const isSelected = lvl === state.selectedLevel;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `level-btn ${!isUnlocked ? 'locked' : ''} ${isCompleted ? 'completed' : ''} ${isSelected ? 'selected' : ''}`;
+        btn.disabled = !isUnlocked;
+
+        btn.innerHTML = `
+          <span style="font-size:1.3rem;">${!isUnlocked ? '🔒' : (isCompleted ? '⭐' : '🎯')}</span>
+          <span class="level-num">Level ${lvl}</span>
+          <span class="level-status">${!isUnlocked ? 'Terkunci' : (isCompleted ? state.levelScores[lvl - 1] + ' Poin' : 'Siap!')}</span>
+        `;
+
+        if (isUnlocked) {
+          btn.addEventListener('click', () => {
+            state.selectedLevel = lvl;
+            renderLevelButtons();
+          });
+        }
+        levelGrid.appendChild(btn);
+      });
+    }
+
+    /**
+     * ============================================================================
+     * PENGATURAN UKURAN CANVAS & OBJEK LATAR TAMAN FANTASI
+     * ============================================================================
+     */
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function initScenery() {
+      // Awan bergerak lembut
+      state.clouds = [];
+      for (let i = 0; i < 6; i++) {
+        state.clouds.push({
+          x: Math.random() * canvas.width,
+          y: 50 + Math.random() * (canvas.height * 0.28),
+          scale: 0.65 + Math.random() * 0.65,
+          speed: 0.18 + Math.random() * 0.25
+        });
+      }
+
+      // Burung-burung kartun lucu terbang di taman
+      const birdColors = ['#fb7185', '#facc15', '#38bdf8', '#a78bfa', '#fb923c'];
+      state.birds = [];
+      for (let i = 0; i < 6; i++) {
+        const dir = i % 2 === 0 ? 1 : -1;
+        state.birds.push({
+          x: Math.random() * canvas.width,
+          y: 130 + Math.random() * (canvas.height * 0.45),
+          vx: dir * (1.1 + Math.random() * 1.1),
+          wingPhase: Math.random() * Math.PI * 2,
+          color: birdColors[i % birdColors.length],
+          size: 16 + Math.random() * 7,
+          bobOffset: Math.random() * 10
+        });
+      }
+    }
+    initScenery();
+
+    /**
+     * ============================================================================
+     * LOGIKA BALON TARGET JAWABAN
+     * ============================================================================
+     */
+    const BALLOON_PALETTE = [
+      { main: '#ef4444', light: '#fca5a5', dark: '#b91c1c' }, // Merah
+      { main: '#3b82f6', light: '#93c5fd', dark: '#1d4ed8' }, // Biru
+      { main: '#10b981', light: '#6ee7b7', dark: '#047857' }, // Hijau
+      { main: '#f59e0b', light: '#fde047', dark: '#b45309' }  // Kuning Oranye
+    ];
+
+    function spawnBalloonsForQuestion(questionObj) {
+      state.balloons = [];
+      const count = questionObj.options.length;
+      const topSafe = Math.min(235, canvas.height * 0.34);
+      const bottomSafe = canvas.height - 95;
+      const areaHeight = Math.max(220, bottomSafe - topSafe);
+      const colWidth = canvas.width / count;
+
+      const labels = ['A', 'B', 'C', 'D'];
+
+      questionObj.options.forEach((optText, idx) => {
+        const radius = Math.max(54, Math.min(76, canvas.width / 13));
+        const startX = colWidth * idx + colWidth * 0.5;
+        const startY = topSafe + areaHeight * (0.35 + (idx % 2) * 0.32);
+
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 0.85 + state.currentLevelIndex * 0.16;
+
+        state.balloons.push({
+          index: idx,
+          label: labels[idx],
+          text: optText,
+          isCorrect: idx === questionObj.correctIndex,
+          x: startX,
+          y: startY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: radius,
+          palette: BALLOON_PALETTE[idx % BALLOON_PALETTE.length],
+          wobble: Math.random() * Math.PI * 2,
+          popped: false,
+          scale: 0.1 // Animasi muncul membesar
+        });
+      });
+    }
+
+    function createPopParticles(x, y, color) {
+      const colors = [color, '#fde047', '#ffffff', '#38bdf8', '#fb7185'];
+      for (let i = 0; i < 28; i++) {
+        const angle = (Math.PI * 2 * i) / 28 + (Math.random() - 0.5) * 0.3;
+        const speed = 2.5 + Math.random() * 6.5;
+        state.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5,
+          size: 5 + Math.random() * 6,
+          color: colors[i % colors.length],
+          alpha: 1,
+          gravity: 0.18
+        });
+      }
+    }
+
+    function createFloatingText(x, y, text, color = '#16a34a') {
+      state.floatingTexts.push({
+        x,
+        y,
+        text,
+        color,
+        alpha: 1,
+        vy: -1.8
+      });
+    }
+
+    /**
+     * ============================================================================
+     * ALUR LEVEL, SOAL, TIMER & PENILAIAN
+     * ============================================================================
+     */
+    function getTotalScore() {
+      return state.levelScores.reduce((acc, val) => acc + val, 0);
+    }
+
+    function updateNavbar() {
+      navPlayerName.textContent = state.playerName;
+      const lvlNum = state.currentLevelIndex + 1;
+      const qNum = state.currentQuestionIndex + 1;
+      navLevelInfo.textContent = `Level ${lvlNum} • Soal ${qNum}/3`;
+      navScore.textContent = getTotalScore();
+    }
+
+    function startLevel(levelNumber) {
+      const inputVal = playerNameInput.value.trim();
+      state.playerName = inputVal || state.playerName || "Penjaga Cilik";
+      try {
+        localStorage.setItem('birdHunter_playerName', state.playerName);
+      } catch (e) {}
+
+      state.selectedLevel = levelNumber;
+      state.currentLevelIndex = levelNumber - 1;
+      state.currentQuestionIndex = 0;
+      state.currentLevelScore = 0;
+      state.levelScores[state.currentLevelIndex] = 0;
+      state.isPlaying = true;
+      state.isPaused = false;
+
+      document.body.classList.remove('menu-open');
+      startScreen.classList.add('hidden');
+      feedbackModal.classList.add('hidden');
+      levelCompleteModal.classList.add('hidden');
+      finalResultModal.classList.add('hidden');
+
+      topNavbar.classList.remove('hidden');
+      questionPanel.classList.remove('hidden');
+      bottomControls.classList.remove('hidden');
+
+      loadQuestion();
+    }
+
+    function loadQuestion() {
+      const levelData = GAME_CONFIG.levels[state.currentLevelIndex];
+      const qData = levelData.questions[state.currentQuestionIndex];
+
+      updateNavbar();
+
+      // Update panel soal
+      const badgeLabels = {
+        LOTS: "LOTS • PEMAHAMAN DASAR",
+        MOTS: "MOTS • ANALISIS SEDERHANA",
+        HOTS: "HOTS • PEMECAHAN MASALAH"
+      };
+      questionBadge.className = `badge-hots badge-${qData.type}`;
+      questionBadge.textContent = badgeLabels[qData.type] || qData.type;
+      questionText.textContent = qData.text;
+
+      spawnBalloonsForQuestion(qData);
+      startQuestionTimer();
+    }
+
+    function startQuestionTimer() {
+      clearInterval(state.timerInterval);
+      state.timeLeft = GAME_CONFIG.waktuPerSoal;
+      updateTimerUI();
+
+      state.timerInterval = setInterval(() => {
+        if (!state.isPlaying || state.isPaused) return;
+        state.timeLeft--;
+        updateTimerUI();
+
+        if (state.timeLeft <= 0) {
+          clearInterval(state.timerInterval);
+          handleTimeOut();
+        }
+      }, 1000);
+    }
+
+    function updateTimerUI() {
+      const pct = Math.max(0, (state.timeLeft / GAME_CONFIG.waktuPerSoal) * 100);
+      timerBarFill.style.width = `${pct}%`;
+      timerText.textContent = `${state.timeLeft}s`;
+    }
+
+    function triggerShootAt(x, y) {
+      if (!state.isPlaying || state.isPaused) return;
+
+      state.reticle.shootFlash = 1.0;
+
+      // Cari balon yang terkena bidikan (cek dari atas ke bawah)
+      let hitBalloon = null;
+      for (let i = state.balloons.length - 1; i >= 0; i--) {
+        const b = state.balloons[i];
+        if (b.popped) continue;
+        const dist = Math.hypot(x - b.x, y - b.y);
+        if (dist <= b.radius * 1.12) {
+          hitBalloon = b;
+          break;
+        }
+      }
+
+      if (!hitBalloon) {
+        sfx.playMiss();
+        createFloatingText(x, y - 10, "Bidik balonnya!", "#64748b");
+        return;
+      }
+
+      // Balon terpilih!
+      hitBalloon.popped = true;
+      sfx.playPop();
+      createPopParticles(hitBalloon.x, hitBalloon.y, hitBalloon.palette.main);
+      clearInterval(state.timerInterval);
+      state.isPaused = true;
+
+      const levelData = GAME_CONFIG.levels[state.currentLevelIndex];
+      const qData = levelData.questions[state.currentQuestionIndex];
+
+      if (hitBalloon.isCorrect) {
+        // JAWABAN BENAR
+        sfx.playCorrect();
+        state.currentLevelScore += GAME_CONFIG.poinBenar;
+        state.levelScores[state.currentLevelIndex] = state.currentLevelScore;
+        updateNavbar();
+
+        createFloatingText(hitBalloon.x, hitBalloon.y - 20, `+${GAME_CONFIG.poinBenar} POIN! 🎉`, "#15803d");
+        showToast(`Hebat ${state.playerName}! Jawaban benar (+${GAME_CONFIG.poinBenar} poin)`, 1800);
+
+        setTimeout(() => {
+          advanceToNextStep();
+        }, 1150);
+      } else {
+        // JAWABAN SALAH -> Tampilkan penjelasan ramah anak
+        sfx.playWrong();
+        createFloatingText(hitBalloon.x, hitBalloon.y - 20, "Ups, kurang tepat!", "#dc2626");
+
+        const correctOpt = qData.options[qData.correctIndex];
+        const correctLabel = ['A', 'B', 'C', 'D'][qData.correctIndex];
+
+        feedbackTitle.textContent = `Hampir Tepat, ${state.playerName}!`;
+        feedbackSubtitle.textContent = "Yuk kita lihat penjelasan singkatnya agar makin paham:";
+        feedbackCorrectAnswer.textContent = `✅ Jawaban Benar: (${correctLabel}) ${correctOpt}`;
+        feedbackExplanation.textContent = `💡 ${qData.explanation}`;
+
+        document.body.classList.add('menu-open');
+        feedbackModal.classList.remove('hidden');
+      }
+    }
+
+    function handleTimeOut() {
+      state.isPaused = true;
+      sfx.playWrong();
+
+      const levelData = GAME_CONFIG.levels[state.currentLevelIndex];
+      const qData = levelData.questions[state.currentQuestionIndex];
+      const correctOpt = qData.options[qData.correctIndex];
+      const correctLabel = ['A', 'B', 'C', 'D'][qData.correctIndex];
+
+      feedbackTitle.textContent = `Waktu Habis, ${state.playerName}!`;
+      feedbackSubtitle.textContent = "Tidak apa-apa, ayo pelajari jawaban yang tepat:";
+      feedbackCorrectAnswer.textContent = `✅ Jawaban Benar: (${correctLabel}) ${correctOpt}`;
+      feedbackExplanation.textContent = `💡 ${qData.explanation}`;
+
+      document.body.classList.add('menu-open');
+      feedbackModal.classList.remove('hidden');
+    }
+
+    btnNextAfterFeedback.addEventListener('click', () => {
+      feedbackModal.classList.add('hidden');
+      document.body.classList.remove('menu-open');
+      advanceToNextStep();
+    });
+
+    function advanceToNextStep() {
+      state.currentQuestionIndex++;
+
+      if (state.currentQuestionIndex < 3) {
+        state.isPaused = false;
+        loadQuestion();
+      } else {
+        // Semua 3 soal di level ini selesai
+        finishCurrentLevel();
+      }
+    }
+
+    function finishCurrentLevel() {
+      state.isPlaying = false;
+      state.isPaused = true;
+      clearInterval(state.timerInterval);
+      sfx.playLevelUp();
+
+      const completedLvl = state.currentLevelIndex + 1;
+      if (completedLvl < 5 && state.unlockedLevel <= completedLvl) {
+        state.unlockedLevel = completedLvl + 1;
+        try {
+          localStorage.setItem('birdHunter_unlockedLevel', String(state.unlockedLevel));
+        } catch (e) {}
+      }
+
+      document.body.classList.add('menu-open');
+      topNavbar.classList.add('hidden');
+      questionPanel.classList.add('hidden');
+      bottomControls.classList.add('hidden');
+
+      if (completedLvl < 5) {
+        const lvlInfo = GAME_CONFIG.levels[state.currentLevelIndex];
+        levelCompleteTitle.textContent = `Level ${completedLvl}: ${lvlInfo.judul} Selesai!`;
+        levelCompleteMessage.textContent = `Luar biasa, ${state.playerName}! Kamu berhasil menjaga taman burung dan membuka Level ${completedLvl + 1}!`;
+        levelScoreValue.textContent = `${state.currentLevelScore} Poin`;
+        totalScorePreview.textContent = `Total Skor Saat Ini: ${getTotalScore()} Poin`;
+        btnNextLevel.textContent = `Lanjut ke Level ${completedLvl + 1} ➡️`;
+        levelCompleteModal.classList.remove('hidden');
+      } else {
+        showFinalResults();
+      }
+    }
+
+    function showFinalResults() {
+      const total = getTotalScore();
+      const maxTotal = 5 * 3 * GAME_CONFIG.poinBenar; // 1500
+
+      finalTotalScore.textContent = `${total} / ${maxTotal} POIN`;
+
+      let rank = "Penjaga Taman Berbakat 🌱";
+      if (total >= 1300) rank = "Master Penjaga Taman Burung 👑";
+      else if (total >= 900) rank = "Pahlawan Taman Cerdas 🌟";
+      else if (total >= 500) rank = "Sahabat Burung Pemberani 🦜";
+
+      finalRankBadge.textContent = `Predikat: ${rank}`;
+      finalAppreciation.textContent = `Terima kasih, ${state.playerName}! Kamu telah menyelesaikan seluruh 5 level petualangan di Taman Burung dengan penuh semangat dan kecerdasan!`;
+
+      finalSummaryList.innerHTML = '';
+      GAME_CONFIG.levels.forEach((lvlObj, idx) => {
+        const row = document.createElement('div');
+        row.className = 'summary-row';
+        row.innerHTML = `
+          <span>🌳 Level ${lvlObj.level}: ${lvlObj.judul}</span>
+          <span style="color:#059669;">${state.levelScores[idx]} Poin</span>
+        `;
+        finalSummaryList.appendChild(row);
+      });
+
+      finalResultModal.classList.remove('hidden');
+    }
+
+    /**
+     * ============================================================================
+     * EVENT LISTENERS TOMBOL NAVIGASI & MENU
+     * ============================================================================
+     */
+    btnStartGame.addEventListener('click', () => {
+      sfx.init();
+      startLevel(state.selectedLevel);
+    });
+
+    btnReplayLevel.addEventListener('click', () => {
+      levelCompleteModal.classList.add('hidden');
+      startLevel(state.currentLevelIndex + 1);
+    });
+
+    btnNextLevel.addEventListener('click', () => {
+      levelCompleteModal.classList.add('hidden');
+      startLevel(state.currentLevelIndex + 2);
+    });
+
+    btnRestartAll.addEventListener('click', () => {
+      state.levelScores = [0, 0, 0, 0, 0];
+      state.selectedLevel = 1;
+      finalResultModal.classList.add('hidden');
+      renderLevelButtons();
+      startScreen.classList.remove('hidden');
+    });
+
+    btnBackToMenu.addEventListener('click', () => {
+      state.isPlaying = false;
+      state.isPaused = true;
+      clearInterval(state.timerInterval);
+
+      topNavbar.classList.add('hidden');
+      questionPanel.classList.add('hidden');
+      bottomControls.classList.add('hidden');
+
+      document.body.classList.add('menu-open');
+      renderLevelButtons();
+      startScreen.classList.remove('hidden');
+    });
+
+    btnToggleSound.addEventListener('click', () => {
+      sfx.enabled = !sfx.enabled;
+      btnToggleSound.textContent = sfx.enabled ? '🔊 Suara: ON' : '🔇 Suara: OFF';
+    });
+
+    /**
+     * ============================================================================
+     * KONTROL ALTERNATIF MOUSE & LAYAR SENTUH (TOUCH)
+     * ============================================================================
+     */
+    canvas.addEventListener('mousemove', (e) => {
+      if (!state.cameraActive || !state.reticle.handDetected) {
+        state.reticle.targetX = e.clientX;
+        state.reticle.targetY = e.clientY;
+      }
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      state.reticle.targetX = e.clientX;
+      state.reticle.targetY = e.clientY;
+      state.reticle.x = e.clientX;
+      state.reticle.y = e.clientY;
+      triggerShootAt(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        state.reticle.targetX = touch.clientX;
+        state.reticle.targetY = touch.clientY;
+        state.reticle.x = touch.clientX;
+        state.reticle.y = touch.clientY;
+        triggerShootAt(touch.clientX, touch.clientY);
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        state.reticle.targetX = touch.clientX;
+        state.reticle.targetY = touch.clientY;
+      }
+    }, { passive: true });
+
+    /**
+     * ============================================================================
+     * INTEGRASI MEDIAPIPE HANDS (AKTIF HANYA SAAT TOMBOL DITEKAN)
+     * ============================================================================
+     */
+    async function toggleCameraGesture() {
+      if (state.cameraActive) {
+        stopCameraGesture();
+        return;
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast("Browser tidak mendukung akses kamera. Gunakan Mouse/Sentuh ya!", 3500);
+        return;
+      }
+
+      try {
+        showToast("Menyiapkan kamera deteksi tangan...", 2500);
+        btnActivateCamStart.disabled = true;
+        btnToggleCamInGame.disabled = true;
+
+        if (!state.handsInstance) {
+          state.handsInstance = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+          });
+
+          state.handsInstance.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.65,
+            minTrackingConfidence: 0.6
+          });
+
+          state.handsInstance.onResults(onHandResults);
+        }
+
+        handCanvas.width = 320;
+        handCanvas.height = 240;
+
+        state.cameraInstance = new Camera(webcamVideo, {
+          onFrame: async () => {
+            if (state.cameraActive && state.handsInstance) {
+              await state.handsInstance.send({ image: webcamVideo });
+            }
+          },
+          width: 320,
+          height: 240
+        });
+
+        await state.cameraInstance.start();
+
+        state.cameraActive = true;
+        cameraWidget.classList.remove('hidden');
+        btnActivateCamStart.textContent = "📷 Kamera Gesture Aktif (Matikan)";
+        btnToggleCamInGame.textContent = "📷 Kamera: AKTIF";
+        showToast("Kamera aktif! Arahkan telunjuk & lakukan PINCH untuk memilih balon.", 3500);
+      } catch (err) {
+        console.warn("Kamera tidak dapat diakses:", err);
+        state.cameraActive = false;
+        cameraWidget.classList.add('hidden');
+        showToast("Kamera tidak diizinkan/tersedia. Kamu tetap bisa bermain dengan Mouse atau Sentuhan!", 4000);
+      } finally {
+        btnActivateCamStart.disabled = false;
+        btnToggleCamInGame.disabled = false;
+      }
+    }
+
+    function stopCameraGesture() {
+      state.cameraActive = false;
+      state.reticle.handDetected = false;
+      state.reticle.isPinching = false;
+
+      if (state.cameraInstance) {
+        try {
+          state.cameraInstance.stop();
+        } catch (e) {}
+      }
+
+      if (webcamVideo.srcObject) {
+        webcamVideo.srcObject.getTracks().forEach(track => track.stop());
+        webcamVideo.srcObject = null;
+      }
+
+      cameraWidget.classList.add('hidden');
+      btnActivateCamStart.textContent = "📷 Aktifkan Kamera Gesture";
+      btnToggleCamInGame.textContent = "📷 Aktifkan Kamera Gesture";
+      showToast("Kamera dimatikan. Mode Mouse / Sentuhan aktif.", 2500);
+    }
+
+    function onHandResults(results) {
+      handCtx.save();
+      handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+      handCtx.drawImage(results.image, 0, 0, handCanvas.width, handCanvas.height);
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        state.reticle.handDetected = true;
+
+        // Gambar kerangka tangan pada mini preview
+        if (typeof drawConnectors !== 'undefined' && typeof HAND_CONNECTIONS !== 'undefined') {
+          drawConnectors(handCtx, landmarks, HAND_CONNECTIONS, { color: '#38bdf8', lineWidth: 3 });
+          drawLandmarks(handCtx, landmarks, { color: '#facc15', lineWidth: 1, radius: 3 });
+        }
+
+        // Landmark 8 = Ujung Jari Telunjuk, Landmark 4 = Ujung Ibu Jari
+        const indexTip = landmarks[8];
+        const thumbTip = landmarks[4];
+
+        // Mirroring X (1 - x) agar pergerakan sesuai cermin
+        const mappedX = (1 - indexTip.x) * canvas.width;
+        const mappedY = indexTip.y * canvas.height;
+
+        state.reticle.targetX = Math.max(20, Math.min(canvas.width - 20, mappedX));
+        state.reticle.targetY = Math.max(20, Math.min(canvas.height - 20, mappedY));
+
+        // Hitung jarak Euclidean antara ujung jempol & ujung telunjuk
+        const pinchDist = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+        const PINCH_THRESHOLD = 0.055;
+
+        if (pinchDist < PINCH_THRESHOLD) {
+          gestureBadge.textContent = "🤏 PINCH! TEMBAK!";
+          gestureBadge.style.color = "#4ade80";
+
+          const now = Date.now();
+          if (!state.reticle.isPinching && (now - state.lastPinchTime > state.pinchCooldownMs)) {
+            state.reticle.isPinching = true;
+            state.lastPinchTime = now;
+            triggerShootAt(state.reticle.x, state.reticle.y);
+          }
+        } else {
+          state.reticle.isPinching = false;
+          gestureBadge.textContent = "☝️ Arahkan Telunjuk";
+          gestureBadge.style.color = "#fde047";
+        }
+      } else {
+        state.reticle.handDetected = false;
+        state.reticle.isPinching = false;
+        gestureBadge.textContent = "Mencari tangan...";
+        gestureBadge.style.color = "#fde047";
+      }
+
+      handCtx.restore();
+    }
+
+    btnActivateCamStart.addEventListener('click', toggleCameraGesture);
+    btnToggleCamInGame.addEventListener('click', toggleCameraGesture);
+    btnCloseCamWidget.addEventListener('click', stopCameraGesture);
+
+    /**
+     * ============================================================================
+     * RENDERING VISUAL TAMAN FANTASI, BURUNG KARTUN, BALON & RETIKEL
+     * ============================================================================
+     */
+    function drawBackgroundScenery(time) {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // 1. Matahari bersinar lembut di pojok kiri atas
+      const sunX = w * 0.12;
+      const sunY = h * 0.14;
+      const sunGrad = ctx.createRadialGradient(sunX, sunY, 15, sunX, sunY, 95);
+      sunGrad.addColorStop(0, '#fef08a');
+      sunGrad.addColorStop(0.5, 'rgba(253, 224, 71, 0.55)');
+      sunGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+      ctx.fillStyle = sunGrad;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 95, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 34, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Awan kartun bergerak
+      state.clouds.forEach(c => {
+        c.x += c.speed;
+        if (c.x - 100 > w) c.x = -100;
+
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.scale(c.scale, c.scale);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 28, 0, Math.PI * 2);
+        ctx.arc(26, -8, 34, 0, Math.PI * 2);
+        ctx.arc(58, 0, 26, 0, Math.PI * 2);
+        ctx.arc(28, 12, 26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // 3. Perbukitan hijau berlapis di bagian bawah
+      ctx.fillStyle = '#86efac';
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      ctx.lineTo(0, h * 0.78);
+      ctx.quadraticCurveTo(w * 0.28, h * 0.66, w * 0.58, h * 0.79);
+      ctx.quadraticCurveTo(w * 0.82, h * 0.88, w, h * 0.74);
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      ctx.lineTo(0, h * 0.85);
+      ctx.quadraticCurveTo(w * 0.35, h * 0.92, w * 0.68, h * 0.81);
+      ctx.quadraticCurveTo(w * 0.88, h * 0.75, w, h * 0.84);
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // 4. Pepohonan fantasi di sisi kiri dan kanan bawah
+      drawFantasyTree(w * 0.06, h * 0.87, 0.95);
+      drawFantasyTree(w * 0.93, h * 0.86, 1.05);
+    }
+
+    function drawFantasyTree(x, y, scale) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+
+      // Batang pohon
+      ctx.fillStyle = '#92400e';
+      ctx.beginPath();
+      ctx.roundRect(-12, -55, 24, 65, 8);
+      ctx.fill();
+
+      // Daun rimbun bertingkat
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.arc(0, -75, 42, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(-22, -60, 28, 0, Math.PI * 2);
+      ctx.arc(22, -60, 28, 0, Math.PI * 2);
+      ctx.arc(0, -95, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawCartoonBirds(time) {
+      state.birds.forEach(b => {
+        b.x += b.vx;
+        b.wingPhase += 0.16;
+        const bobY = Math.sin(time * 0.003 + b.bobOffset) * 8;
+
+        if (b.vx > 0 && b.x - 40 > canvas.width) b.x = -40;
+        if (b.vx < 0 && b.x + 40 < 0) b.x = canvas.width + 40;
+
+        ctx.save();
+        ctx.translate(b.x, b.y + bobY);
+        if (b.vx < 0) ctx.scale(-1, 1);
+
+        // Badan burung bulat lucu
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, b.size * 1.15, b.size * 0.9, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Perut cerah
+        ctx.fillStyle = '#fef9c3';
+        ctx.beginPath();
+        ctx.ellipse(3, 4, b.size * 0.7, b.size * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sayap mengepak
+        const wingAngle = Math.sin(b.wingPhase) * 0.55;
+        ctx.save();
+        ctx.translate(-2, -2);
+        ctx.rotate(wingAngle);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath();
+        ctx.ellipse(-4, -6, b.size * 0.65, b.size * 0.35, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Mata kartun
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(b.size * 0.55, -b.size * 0.25, b.size * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(b.size * 0.63, -b.size * 0.25, b.size * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Paruh oranye
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(b.size * 1.05, -3);
+        ctx.lineTo(b.size * 1.55, 1);
+        ctx.lineTo(b.size * 1.05, 6);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+      });
+    }
+
+    function updateAndDrawBalloons() {
+      const topBound = Math.min(235, canvas.height * 0.34);
+      const bottomBound = canvas.height - 90;
+      const sideMargin = 70;
+
+      state.balloons.forEach(b => {
+        if (b.popped) return;
+
+        // Animasi muncul membesar
+        if (b.scale < 1) {
+          b.scale = Math.min(1, b.scale + 0.08);
+        }
+
+        // Gerak balon memantul lembut
+        if (!state.isPaused) {
+          b.wobble += 0.04;
+          b.x += b.vx + Math.sin(b.wobble) * 0.35;
+          b.y += b.vy + Math.cos(b.wobble * 0.8) * 0.3;
+
+          if (b.x - b.radius < sideMargin) {
+            b.x = sideMargin + b.radius;
+            b.vx = Math.abs(b.vx);
+          } else if (b.x + b.radius > canvas.width - sideMargin) {
+            b.x = canvas.width - sideMargin - b.radius;
+            b.vx = -Math.abs(b.vx);
+          }
+
+          if (b.y - b.radius < topBound) {
+            b.y = topBound + b.radius;
+            b.vy = Math.abs(b.vy);
+          } else if (b.y + b.radius > bottomBound) {
+            b.y = bottomBound - b.radius;
+            b.vy = -Math.abs(b.vy);
+          }
+        }
+
+        // Cek apakah retikel sedang membidik balon ini
+        const isHovered = Math.hypot(state.reticle.x - b.x, state.reticle.y - b.y) <= b.radius * 1.1;
+
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        const hoverScale = isHovered ? 1.07 : 1.0;
+        ctx.scale(b.scale * hoverScale, b.scale * hoverScale);
+
+        // Tali balon melengkung
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, b.radius * 1.08);
+        ctx.quadraticCurveTo(Math.sin(b.wobble) * 10, b.radius + 25, 0, b.radius + 48);
+        ctx.stroke();
+
+        // Simpul bawah balon
+        ctx.fillStyle = b.palette.dark;
+        ctx.beginPath();
+        ctx.moveTo(-7, b.radius * 1.08);
+        ctx.lineTo(7, b.radius * 1.08);
+        ctx.lineTo(0, b.radius * 0.96);
+        ctx.closePath();
+        ctx.fill();
+
+        // Badan balon gradasi cerah
+        const grad = ctx.createRadialGradient(-b.radius * 0.3, -b.radius * 0.3, 8, 0, 0, b.radius * 1.15);
+        grad.addColorStop(0, b.palette.light);
+        grad.addColorStop(0.55, b.palette.main);
+        grad.addColorStop(1, b.palette.dark);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, b.radius, b.radius * 1.08, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Outline putih saat dibidik
+        ctx.lineWidth = isHovered ? 5 : 3;
+        ctx.strokeStyle = isHovered ? '#fef08a' : 'rgba(255,255,255,0.85)';
+        ctx.stroke();
+
+        // Kilau cahaya balon
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(-b.radius * 0.38, -b.radius * 0.38, b.radius * 0.18, b.radius * 0.32, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Badge huruf pilihan (A, B, C, D) di bagian atas balon
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, -b.radius * 0.64, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = b.palette.dark;
+        ctx.font = '700 15px Fredoka, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.label, 0, -b.radius * 0.64 + 1);
+
+        // Teks jawaban di tengah balon (dibungkus multi-baris otomatis)
+        drawWrappedText(ctx, b.text, 0, 8, b.radius * 1.62, 18);
+
+        ctx.restore();
+      });
+    }
+
+    function drawWrappedText(context, text, x, y, maxWidth, lineHeight) {
+      context.fillStyle = '#ffffff';
+      context.font = '700 15px Fredoka, sans-serif';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.shadowColor = 'rgba(0,0,0,0.35)';
+      context.shadowBlur = 4;
+
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = words[0];
+
+      for (let i = 1; i < words.length; i++) {
+        const testLine = currentLine + ' ' + words[i];
+        const width = context.measureText(testLine).width;
+        if (width < maxWidth) {
+          currentLine = testLine;
+        } else {
+          lines.push(currentLine);
+          currentLine = words[i];
+        }
+      }
+      lines.push(currentLine);
+
+      const startY = y - ((lines.length - 1) * lineHeight) / 2;
+      lines.forEach((line, idx) => {
+        context.fillText(line, x, startY + idx * lineHeight);
+      });
+      context.shadowBlur = 0;
+    }
+
+    function updateAndDrawParticles() {
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.alpha -= 0.024;
+
+        if (p.alpha <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = state.floatingTexts[i];
+        ft.y += ft.vy;
+        ft.alpha -= 0.016;
+
+        if (ft.alpha <= 0) {
+          state.floatingTexts.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = ft.alpha;
+        ctx.font = '700 24px Fredoka, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText(ft.text, ft.x, ft.y);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+    }
+
+    function drawReticle() {
+      if (!state.isPlaying) return;
+
+      // Smoothing pergerakan retikel agar halus dan tidak bergetar
+      state.reticle.x += (state.reticle.targetX - state.reticle.x) * 0.28;
+      state.reticle.y += (state.reticle.targetY - state.reticle.y) * 0.28;
+      state.reticle.pulse += 0.1;
+      if (state.reticle.shootFlash > 0) {
+        state.reticle.shootFlash = Math.max(0, state.reticle.shootFlash - 0.1);
+      }
+
+      const x = state.reticle.x;
+      const y = state.reticle.y;
+      const baseRadius = 26 + Math.sin(state.reticle.pulse) * 2.5 + state.reticle.shootFlash * 12;
+
+      ctx.save();
+      ctx.translate(x, y);
+
+      // Lingkaran luar retikel bercahaya
+      ctx.strokeStyle = state.reticle.isPinching ? '#22c55e' : '#ef4444';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Lingkaran putih dalam untuk kontras tinggi di segala latar
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, baseRadius - 4, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Garis bidik silang (crosshair)
+      const lineLen = 12;
+      const gap = 8;
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(-baseRadius - lineLen + 6, 0); ctx.lineTo(-gap, 0);
+      ctx.moveTo(gap, 0); ctx.lineTo(baseRadius + lineLen - 6, 0);
+      ctx.moveTo(0, -baseRadius - lineLen + 6); ctx.lineTo(0, -gap);
+      ctx.moveTo(0, gap); ctx.lineTo(0, baseRadius + lineLen - 6);
+      ctx.stroke();
+
+      // Titik bidik tengah
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    /**
+     * ============================================================================
+     * LOOP ANIMASI UTAMA (60 FPS)
+     * ============================================================================
+     */
+    function gameLoop(timestamp) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBackgroundScenery(timestamp || 0);
+      drawCartoonBirds(timestamp || 0);
+
+      if (state.isPlaying) {
+        updateAndDrawBalloons();
+      }
+
+      updateAndDrawParticles();
+      drawReticle();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Mulai inisialisasi saat halaman dimuat
+    window.addEventListener('load', () => {
+      initStartScreenUI();
+      requestAnimationFrame(gameLoop);
+    });
+  </script>
+</body>
+</html>
